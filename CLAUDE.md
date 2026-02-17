@@ -19,7 +19,7 @@ Three interaction channels: Web Chat (Inertia/React), TUI (Laravel Prompts), Ema
 ## Commands
 
 ```bash
-composer dev                    # Start server + reverb + queue + logs + Vite (5 concurrent processes)
+composer dev                    # Start reverb + queue + logs + Vite (4 processes; FrankenPHP serves HTTP)
 composer test                   # Run Pest test suite (clears config cache first)
 vendor/bin/pest --filter=ChatTest   # Run a single test class
 vendor/bin/pest --filter=test_name  # Run a single test method
