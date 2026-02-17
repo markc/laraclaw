@@ -13,8 +13,10 @@ Broadcast::channel('chat.user.{userId}', function ($user, $userId) {
 });
 
 // Session-level channel for stream events (chat messages)
-Broadcast::channel('chat.session.{sessionKey}', function ($user, $sessionKey) {
-    // Allow if session doesn't exist yet (new chat) or user owns the session
+// Channel uses dots (Pusher-safe) but session_key in DB uses colons
+// Pattern: chat.session.web.{userId}.{uuid} maps to session_key web:{userId}:{uuid}
+Broadcast::channel('chat.session.web.{userId}.{uuid}', function ($user, $userId, $uuid) {
+    $sessionKey = "web:{$userId}:{$uuid}";
     $session = AgentSession::where('session_key', $sessionKey)->first();
 
     return ! $session || (int) $session->user_id === (int) $user->id;

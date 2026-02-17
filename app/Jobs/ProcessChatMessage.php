@@ -36,8 +36,9 @@ class ProcessChatMessage implements ShouldQueue
             'error' => $e->getMessage(),
         ]);
 
-        // Broadcast error to the session channel
-        Broadcast::private('chat.session.'.$this->message->sessionKey)
+        // Broadcast error to the session channel (colons → dots for Pusher)
+        $channelKey = str_replace(':', '.', $this->message->sessionKey);
+        Broadcast::private('chat.session.'.$channelKey)
             ->as('error')
             ->with([
                 'type' => 'error',

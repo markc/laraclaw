@@ -8,7 +8,7 @@ use App\Events\SessionUpdated;
 use App\Models\AgentMessage;
 use App\Models\AgentSession;
 use App\Services\Tools\BuiltIn\CurrentDateTimeTool;
-use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\AnonymousAgent;
 use Laravel\Ai\Messages\Message;
@@ -126,7 +126,12 @@ class AgentRuntime
         $context = $this->contextAssembler->build($session, $message);
         $agent = $this->buildAgent($context, $session);
 
-        $channel = new PrivateChannel('chat.session.'.$message->sessionKey);
+        // Pusher channel names cannot contain colons — replace with dots
+        // Use plain Channel with 'private-' prefix already included to avoid
+        // double-prefix bug: SDK's StreamEvent::broadcast() calls Broadcast::private()
+        // which wraps in PrivateChannel again, producing 'private-private-...'
+        $channelKey = str_replace(':', '.', $message->sessionKey);
+        $channel = new Channel('private-chat.session.'.$channelKey);
 
         $stream = $agent->broadcastNow(
             prompt: $message->content,

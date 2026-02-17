@@ -28,8 +28,6 @@ class CurrentDateTimeTool implements Tool
 
     public function schema(JsonSchema $schema): array
     {
-        return $schema->object([])
-            ->description('No parameters required')
-            ->toArray();
+        return [];
     }
 }

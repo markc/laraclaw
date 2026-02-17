@@ -1,8 +1,13 @@
-import { router } from '@inertiajs/react';
+import { usePage } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AgentSession, AvailableModels, TextDeltaEvent, StreamEndEvent, StreamErrorEvent } from '@/types';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
+
+/** Convert session_key to a Pusher-safe channel name (colons → dots) */
+function channelName(sessionKey: string): string {
+    return `chat.session.${sessionKey.replace(/:/g, '.')}`;
+}
 
 interface Props {
     session: AgentSession | null;
@@ -21,14 +26,8 @@ function getCsrfToken(): string {
     return match ? decodeURIComponent(match[1]) : '';
 }
 
-function generateSessionKey(userId: number): string {
-    // Generate a uuid7-like key (timestamp-based for ordering)
-    const ts = Date.now().toString(36);
-    const rand = Math.random().toString(36).substring(2, 10);
-    return `web:${userId}:${ts}-${rand}`;
-}
-
 export default function ChatInterface({ session, availableModels }: Props) {
+    const { auth } = usePage().props;
     const [messages, setMessages] = useState<LocalMessage[]>([]);
     const [sessionKey, setSessionKey] = useState<string | null>(session?.session_key ?? null);
     const [selectedModel, setSelectedModel] = useState<string>(
@@ -70,10 +69,10 @@ export default function ChatInterface({ session, availableModels }: Props) {
 
         // Leave previous channel if any
         if (subscribedChannelRef.current) {
-            window.Echo.leave(`chat.session.${subscribedChannelRef.current}`);
+            window.Echo.leave(channelName(subscribedChannelRef.current));
         }
 
-        const channel = window.Echo.private(`chat.session.${sessionKey}`);
+        const channel = window.Echo.private(channelName(sessionKey));
 
         channel.listen('.stream_start', () => {
             const id = `stream-${Date.now()}`;
@@ -136,7 +135,7 @@ export default function ChatInterface({ session, availableModels }: Props) {
         subscribedChannelRef.current = sessionKey;
 
         return () => {
-            window.Echo.leave(`chat.session.${sessionKey}`);
+            window.Echo.leave(channelName(sessionKey));
             subscribedChannelRef.current = null;
         };
     }, [sessionKey]);
@@ -153,15 +152,6 @@ export default function ChatInterface({ session, availableModels }: Props) {
             };
             setMessages((prev) => [...prev, userMsg]);
 
-            // For new chats, generate session key and subscribe before sending
-            let currentKey = sessionKey;
-            if (!currentKey) {
-                // Get userId from the page props
-                const userId = (window as any).__page?.props?.auth?.user?.id;
-                currentKey = generateSessionKey(userId ?? 0);
-                setSessionKey(currentKey);
-            }
-
             try {
                 const response = await fetch(route('chat.send'), {
                     method: 'POST',
@@ -172,7 +162,7 @@ export default function ChatInterface({ session, availableModels }: Props) {
                     },
                     body: JSON.stringify({
                         message: content.trim(),
-                        session_key: currentKey,
+                        session_key: sessionKey,
                         model: selectedModel,
                         provider: selectedProvider,
                         system_prompt: systemPrompt || undefined,
@@ -184,8 +174,8 @@ export default function ChatInterface({ session, availableModels }: Props) {
                 }
 
                 const data = await response.json();
-                // Update session key if server returned a different one
-                if (data.session_key && data.session_key !== currentKey) {
+                // Server always returns the session_key (generated if new)
+                if (data.session_key && data.session_key !== sessionKey) {
                     setSessionKey(data.session_key);
                 }
             } catch (error) {
