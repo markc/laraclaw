@@ -8,7 +8,10 @@ use App\Mcp\Resources\SessionResource;
 use App\Mcp\Tools\ChatTool;
 use App\Mcp\Tools\ListSessionsTool;
 use App\Mcp\Tools\ReadSessionTool;
+use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Laravel\Mcp\Server;
+use Laravel\Mcp\Server\Transport\StdioTransport;
 
 class LaraClawServer extends Server
 {
@@ -60,4 +63,18 @@ class LaraClawServer extends Server
     protected array $prompts = [
         ChatPrompt::class,
     ];
+
+    /**
+     * Auto-authenticate the default user for local (stdio) transport.
+     */
+    protected function boot(): void
+    {
+        if ($this->transport instanceof StdioTransport) {
+            $user = User::first();
+
+            if ($user) {
+                Auth::login($user);
+            }
+        }
+    }
 }
