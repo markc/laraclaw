@@ -45,7 +45,14 @@ function LayoutContent({ children }: PropsWithChildren) {
 
         channel.listen('.session.created', reloadSidebar);
         channel.listen('.session.updated', reloadSidebar);
-        channel.listen('.session.deleted', reloadSidebar);
+        channel.listen('.session.deleted', () => {
+            // Only reload if we're on the index page — the delete response
+            // already redirects to /chat with fresh props. Reloading on a
+            // /chat/{id} page for a deleted session would 404.
+            if (window.location.pathname === '/chat') {
+                reloadSidebar();
+            }
+        });
 
         return () => {
             window.Echo.leave(`chat.user.${auth.user.id}`);

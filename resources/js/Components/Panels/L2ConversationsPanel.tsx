@@ -59,7 +59,7 @@ export default function L2ConversationsPanel() {
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    router.delete(route('chat.destroy', conv.id), { preserveScroll: true });
+                                    router.delete(route('chat.destroy', conv.id));
                                 }}
                                 className="rounded p-1 hover:bg-destructive/10"
                                 title="Delete conversation"
