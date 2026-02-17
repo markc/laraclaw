@@ -1,7 +1,6 @@
-import { useStream } from '@laravel/stream-react';
 import { router } from '@inertiajs/react';
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { AgentMessage, AgentSession, AvailableModels } from '@/types';
+import { useCallback, useEffect, useState } from 'react';
+import { AgentSession, AvailableModels } from '@/types';
 import MessageList from './MessageList';
 import MessageInput from './MessageInput';
 
@@ -34,9 +33,6 @@ export default function ChatInterface({ session, availableModels }: Props) {
     const [systemPrompt, setSystemPrompt] = useState<string>(session?.system_prompt ?? '');
     const [isStreaming, setIsStreaming] = useState(false);
 
-    const streamRef = useRef<ReturnType<typeof useStream> | null>(null);
-
-    // Load existing messages from session
     useEffect(() => {
         if (session?.messages) {
             setMessages(
@@ -56,7 +52,6 @@ export default function ChatInterface({ session, availableModels }: Props) {
         async (content: string) => {
             if (isStreaming || !content.trim()) return;
 
-            // Add user message to local state
             const userMsg: LocalMessage = {
                 id: `local-${Date.now()}`,
                 role: 'user',
@@ -65,7 +60,6 @@ export default function ChatInterface({ session, availableModels }: Props) {
             setMessages((prev) => [...prev, userMsg]);
             setIsStreaming(true);
 
-            // Add placeholder for assistant response
             const assistantId = `stream-${Date.now()}`;
             setMessages((prev) => [
                 ...prev,
@@ -89,7 +83,6 @@ export default function ChatInterface({ session, availableModels }: Props) {
                     }),
                 });
 
-                // Get session key from response headers
                 const newSessionKey = response.headers.get('X-Session-Key');
                 if (newSessionKey && !sessionKey) {
                     setSessionKey(newSessionKey);
@@ -110,7 +103,6 @@ export default function ChatInterface({ session, availableModels }: Props) {
 
                     for (const line of lines) {
                         if (line.startsWith('0:')) {
-                            // Vercel AI protocol: text delta
                             try {
                                 const text = JSON.parse(line.slice(2));
                                 accumulated += text;
@@ -125,20 +117,17 @@ export default function ChatInterface({ session, availableModels }: Props) {
                                 // Ignore parse errors
                             }
                         } else if (line.startsWith('d:')) {
-                            // Vercel AI protocol: done
                             break;
                         }
                     }
                 }
 
-                // Mark streaming complete
                 setMessages((prev) =>
                     prev.map((m) =>
                         m.id === assistantId ? { ...m, isStreaming: false } : m
                     )
                 );
 
-                // Reload sidebar to show new conversation
                 router.reload({ only: ['sidebarConversations', 'sidebarStats'] });
             } catch (error) {
                 console.error('Stream error:', error);
@@ -157,7 +146,7 @@ export default function ChatInterface({ session, availableModels }: Props) {
     );
 
     return (
-        <div className="flex h-full flex-col">
+        <div className="flex flex-col" style={{ height: 'calc(100vh - var(--topnav-height))' }}>
             <MessageList messages={messages} />
             <MessageInput
                 onSend={handleSend}

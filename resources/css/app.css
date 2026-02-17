@@ -1,3 +1,56 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import './laraclaw.css';
+
+@source '../views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+    --font-sans:
+        'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
+        'Noto Color Emoji';
+
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
+    --color-primary: var(--primary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-secondary: var(--secondary);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-muted: var(--muted);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-accent: var(--accent);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-destructive: var(--destructive);
+    --color-border: var(--border);
+    --color-input: var(--input);
+    --color-ring: var(--ring);
+}
+
+:root, .dark {
+    --background: var(--scheme-bg-primary);
+    --foreground: var(--scheme-fg-primary);
+    --primary: var(--scheme-accent);
+    --primary-foreground: var(--scheme-accent-fg);
+    --secondary: var(--scheme-bg-secondary);
+    --secondary-foreground: var(--scheme-fg-primary);
+    --muted: var(--scheme-bg-secondary);
+    --muted-foreground: var(--scheme-fg-muted);
+    --accent: var(--scheme-accent-subtle);
+    --accent-foreground: var(--scheme-fg-primary);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: var(--scheme-border);
+    --input: var(--scheme-fg-muted);
+    --ring: var(--scheme-accent);
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground;
+    }
+}

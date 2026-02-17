@@ -19,10 +19,10 @@ export default function MessageList({ messages }: { messages: LocalMessage[] }) 
         return (
             <div className="flex flex-1 items-center justify-center">
                 <div className="text-center">
-                    <h2 className="text-2xl font-semibold text-gray-300 dark:text-gray-600">
+                    <h2 className="text-2xl font-semibold" style={{ color: 'var(--scheme-fg-muted)', opacity: 0.5 }}>
                         LaRaClaw
                     </h2>
-                    <p className="mt-2 text-sm text-gray-400 dark:text-gray-500">
+                    <p className="mt-2 text-sm" style={{ color: 'var(--scheme-fg-muted)' }}>
                         Start a conversation with your AI agent
                     </p>
                 </div>

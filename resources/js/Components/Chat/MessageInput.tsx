@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, useRef, useState } from 'react';
+import { Send } from 'lucide-react';
 import { AvailableModels } from '@/types';
 
 interface Props {
@@ -52,9 +53,11 @@ export default function MessageInput({
     };
 
     return (
-        <div className="border-t border-gray-200 bg-white px-4 py-3 dark:border-gray-700 dark:bg-gray-800">
+        <div
+            className="border-t px-4 py-3"
+            style={{ borderColor: 'var(--glass-border)', background: 'var(--glass)' }}
+        >
             <div className="mx-auto max-w-3xl">
-                {/* Model selector and system prompt toggle */}
                 <div className="mb-2 flex items-center gap-3">
                     <select
                         value={`${selectedProvider}:${selectedModel}`}
@@ -62,7 +65,8 @@ export default function MessageInput({
                             const [provider, ...modelParts] = e.target.value.split(':');
                             onModelChange(modelParts.join(':'), provider);
                         }}
-                        className="rounded-md border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                        className="rounded-md border bg-transparent px-2 py-1 text-xs outline-none"
+                        style={{ borderColor: 'var(--scheme-border)', color: 'var(--scheme-fg-secondary)' }}
                     >
                         {Object.entries(availableModels).map(([provider, models]) => (
                             <optgroup key={provider} label={provider.charAt(0).toUpperCase() + provider.slice(1)}>
@@ -81,17 +85,17 @@ export default function MessageInput({
                     <button
                         type="button"
                         onClick={() => setShowSystemPrompt(!showSystemPrompt)}
-                        className={`text-xs ${
-                            showSystemPrompt || systemPrompt
-                                ? 'text-indigo-600 dark:text-indigo-400'
-                                : 'text-gray-400 hover:text-gray-600'
-                        }`}
+                        className="text-xs transition-colors"
+                        style={{
+                            color: showSystemPrompt || systemPrompt
+                                ? 'var(--scheme-accent)'
+                                : 'var(--scheme-fg-muted)',
+                        }}
                     >
                         System Prompt {systemPrompt ? '●' : ''}
                     </button>
                 </div>
 
-                {/* System prompt editor */}
                 {showSystemPrompt && (
                     <div className="mb-2">
                         <textarea
@@ -99,12 +103,12 @@ export default function MessageInput({
                             onChange={(e) => onSystemPromptChange(e.target.value)}
                             placeholder="Custom system prompt (optional)..."
                             rows={3}
-                            className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2 text-xs text-gray-700 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300"
+                            className="w-full rounded-md border bg-transparent px-3 py-2 text-xs outline-none placeholder:text-muted-foreground focus:border-[var(--scheme-accent)]"
+                            style={{ borderColor: 'var(--scheme-border)', color: 'var(--scheme-fg-secondary)' }}
                         />
                     </div>
                 )}
 
-                {/* Message input */}
                 <form onSubmit={handleSubmit} className="flex items-end gap-2">
                     <textarea
                         ref={textareaRef}
@@ -115,12 +119,14 @@ export default function MessageInput({
                         placeholder="Type a message..."
                         rows={1}
                         disabled={isStreaming}
-                        className="flex-1 resize-none rounded-xl border border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        className="flex-1 resize-none rounded-xl border bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted-foreground focus:border-[var(--scheme-accent)] disabled:opacity-50"
+                        style={{ borderColor: 'var(--scheme-border)', color: 'var(--scheme-fg-primary)' }}
                     />
                     <button
                         type="submit"
                         disabled={isStreaming || !input.trim()}
-                        className="rounded-xl bg-indigo-600 px-4 py-3 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                        className="rounded-xl px-4 py-3 text-sm font-medium transition-colors disabled:opacity-50"
+                        style={{ backgroundColor: 'var(--scheme-accent)', color: 'var(--scheme-accent-fg)' }}
                     >
                         {isStreaming ? (
                             <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24">
@@ -128,9 +134,7 @@ export default function MessageInput({
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                             </svg>
                         ) : (
-                            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
+                            <Send className="h-5 w-5" />
                         )}
                     </button>
                 </form>
