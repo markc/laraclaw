@@ -3,9 +3,12 @@
 namespace App\Services\Agent;
 
 use App\DTOs\IncomingMessage;
+use App\Events\SessionCreated;
+use App\Events\SessionUpdated;
 use App\Models\AgentMessage;
 use App\Models\AgentSession;
 use App\Services\Tools\BuiltIn\CurrentDateTimeTool;
+use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\AnonymousAgent;
 use Laravel\Ai\Messages\Message;
@@ -106,6 +109,53 @@ class AgentRuntime
     }
 
     /**
+     * Stream a response and broadcast each event via Reverb.
+     * Used by the queued ProcessChatMessage job.
+     */
+    public function streamAndBroadcast(IncomingMessage $message): void
+    {
+        $session = $this->sessionResolver->resolve($message);
+        $isNew = $session->wasRecentlyCreated;
+
+        // Save user message
+        $this->saveMessage($session, 'user', $message->content, [
+            'channel' => $message->channel,
+            'sender' => $message->sender,
+        ]);
+
+        $context = $this->contextAssembler->build($session, $message);
+        $agent = $this->buildAgent($context, $session);
+
+        $channel = new PrivateChannel('chat.session.'.$message->sessionKey);
+
+        $stream = $agent->broadcastNow(
+            prompt: $message->content,
+            channels: [$channel],
+            provider: $session->getEffectiveProvider(),
+            model: $session->getEffectiveModel(),
+        );
+
+        // After .each() in broadcastNow completes, text + usage are populated
+        $this->saveMessage($session, 'assistant', $stream->text ?? '', [
+            'provider' => $session->getEffectiveProvider(),
+            'model' => $session->getEffectiveModel(),
+        ], [
+            'input_tokens' => $stream->usage?->inputTokens ?? 0,
+            'output_tokens' => $stream->usage?->outputTokens ?? 0,
+        ]);
+
+        $session->update(['last_activity_at' => now()]);
+        $this->maybeGenerateTitle($session);
+
+        // Broadcast session lifecycle event
+        if ($isNew) {
+            event(new SessionCreated($session->fresh()));
+        } else {
+            event(new SessionUpdated($session->fresh()));
+        }
+    }
+
+    /**
      * Build an AnonymousAgent from context.
      */
     protected function buildAgent(array $context, AgentSession $session): AnonymousAgent
@@ -128,7 +178,7 @@ class AgentRuntime
             instructions: $context['system'],
             messages: $messages,
             tools: [
-                new CurrentDateTimeTool(),
+                new CurrentDateTimeTool,
             ],
         );
     }

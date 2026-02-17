@@ -3,9 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\DTOs\IncomingMessage;
+use App\Events\SessionDeleted;
+use App\Events\SessionUpdated;
+use App\Jobs\ProcessChatMessage;
 use App\Models\AgentSession;
-use App\Services\Agent\AgentRuntime;
 use App\Services\Agent\ModelRegistry;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -13,7 +16,6 @@ use Inertia\Inertia;
 class ChatController extends Controller
 {
     public function __construct(
-        protected AgentRuntime $runtime,
         protected ModelRegistry $modelRegistry,
     ) {}
 
@@ -44,9 +46,9 @@ class ChatController extends Controller
     }
 
     /**
-     * POST /chat/stream — Streaming chat endpoint.
+     * POST /chat/send — Dispatch chat message to queue, return immediately.
      */
-    public function stream(Request $request)
+    public function send(Request $request): JsonResponse
     {
         $request->validate([
             'message' => 'required|string|max:32000',
@@ -58,7 +60,7 @@ class ChatController extends Controller
 
         $user = $request->user();
         $sessionKey = $request->input('session_key')
-            ?? 'web:' . $user->id . ':' . Str::uuid7();
+            ?? 'web:'.$user->id.':'.Str::uuid7();
 
         $provider = $request->input('provider');
         $model = $request->input('model');
@@ -79,15 +81,11 @@ class ChatController extends Controller
             systemPrompt: $request->input('system_prompt'),
         );
 
-        $stream = $this->runtime->streamMessage($message);
+        ProcessChatMessage::dispatch($message);
 
-        // Include session key in response headers for the frontend
-        return $stream
-            ->usingVercelDataProtocol()
-            ->toResponse($request)
-            ->withHeaders([
-                'X-Session-Key' => $sessionKey,
-            ]);
+        return response()->json([
+            'session_key' => $sessionKey,
+        ]);
     }
 
     /**
@@ -97,7 +95,12 @@ class ChatController extends Controller
     {
         $this->authorize('delete', $agentSession);
 
+        $sessionId = $agentSession->id;
+        $userId = $agentSession->user_id;
+
         $agentSession->delete();
+
+        event(new SessionDeleted($sessionId, $userId));
 
         return redirect()->route('chat.index');
     }
@@ -114,6 +117,8 @@ class ChatController extends Controller
         ]);
 
         $agentSession->update(['title' => $request->input('title')]);
+
+        event(new SessionUpdated($agentSession->fresh()));
 
         return back();
     }

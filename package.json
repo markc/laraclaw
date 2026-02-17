@@ -3,8 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "tsc && vite build",
-        "dev": "vite"
+        "build": "bunx tsc && bunx vite build",
+        "dev": "bunx vite"
     },
     "devDependencies": {
         "@headlessui/react": "^2.0.0",
@@ -26,7 +26,9 @@
     "dependencies": {
         "@laravel/stream-react": "^0.3.10",
         "@streamdown/code": "^1.0.2",
+        "laravel-echo": "^2.3.0",
         "lucide-react": "^0.570.0",
+        "pusher-js": "^8.4.0",
         "streamdown": "^2.2.0"
     }
 }

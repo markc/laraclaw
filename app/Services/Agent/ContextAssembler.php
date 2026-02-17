@@ -2,9 +2,8 @@
 
 namespace App\Services\Agent;
 
-use App\Models\AgentSession;
 use App\DTOs\IncomingMessage;
-use Illuminate\Support\Facades\Storage;
+use App\Models\AgentSession;
 
 class ContextAssembler
 {
@@ -27,7 +26,7 @@ class ContextAssembler
         if ($session->compacted_summary) {
             $messages[] = [
                 'role' => 'system',
-                'content' => "Previous conversation summary:\n" . $session->compacted_summary,
+                'content' => "Previous conversation summary:\n".$session->compacted_summary,
             ];
         }
 

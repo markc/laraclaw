@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import { Menu } from 'lucide-react';
 import { useEffect, type PropsWithChildren } from 'react';
 import Sidebar from '@/Components/Sidebar';
@@ -24,6 +24,7 @@ const rightPanels = [
 
 function LayoutContent({ children }: PropsWithChildren) {
     const { left, right, noPadding, toggleSidebar } = useTheme();
+    const { auth } = usePage().props;
 
     useEffect(() => {
         const onScroll = () => document.body.classList.toggle('scrolled', window.scrollY > 0);
@@ -31,6 +32,25 @@ function LayoutContent({ children }: PropsWithChildren) {
         onScroll();
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
+
+    // Subscribe to user-level channel for session lifecycle events
+    useEffect(() => {
+        if (!auth?.user?.id) return;
+
+        const channel = window.Echo.private(`chat.user.${auth.user.id}`);
+
+        const reloadSidebar = () => {
+            router.reload({ only: ['sidebarConversations', 'sidebarStats'] });
+        };
+
+        channel.listen('.session.created', reloadSidebar);
+        channel.listen('.session.updated', reloadSidebar);
+        channel.listen('.session.deleted', reloadSidebar);
+
+        return () => {
+            window.Echo.leave(`chat.user.${auth.user.id}`);
+        };
+    }, [auth?.user?.id]);
 
     return (
         <div className="bg-background text-foreground">

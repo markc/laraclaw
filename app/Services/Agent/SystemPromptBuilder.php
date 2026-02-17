@@ -57,14 +57,14 @@ class SystemPromptBuilder
 
         // Check workspace path
         $workspacePath = $session->agent->workspace_path ?? config('agent.workspace_path');
-        $filePath = $workspacePath . '/' . $filename;
+        $filePath = $workspacePath.'/'.$filename;
 
         if (file_exists($filePath)) {
             return file_get_contents($filePath);
         }
 
         // Check storage disk
-        $storagePath = 'agent/' . $filename;
+        $storagePath = 'agent/'.$filename;
         if (Storage::exists($storagePath)) {
             return Storage::get($storagePath);
         }

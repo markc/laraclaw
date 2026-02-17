@@ -3,7 +3,6 @@
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 Route::get('/', function () {
     return auth()->check()
@@ -19,7 +18,7 @@ Route::middleware('auth')->group(function () {
     // Chat routes
     Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
     Route::get('/chat/{agentSession}', [ChatController::class, 'show'])->name('chat.show');
-    Route::post('/chat/stream', [ChatController::class, 'stream'])->name('chat.stream');
+    Route::post('/chat/send', [ChatController::class, 'send'])->name('chat.send');
     Route::delete('/chat/{agentSession}', [ChatController::class, 'destroy'])->name('chat.destroy');
     Route::patch('/chat/{agentSession}', [ChatController::class, 'update'])->name('chat.update');
 
