@@ -25,7 +25,6 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarConversations' => fn () => $request->user()
                 ? AgentSession::where('user_id', $request->user()->id)
-                    ->where('channel', 'web')
                     ->orderByDesc('last_activity_at')
                     ->limit(50)
                     ->get(['id', 'session_key', 'title', 'model', 'provider', 'last_activity_at', 'updated_at'])
@@ -39,7 +38,7 @@ class HandleInertiaRequests extends Middleware
 
     protected function buildStats(int $userId): array
     {
-        $sessions = AgentSession::where('user_id', $userId)->where('channel', 'web');
+        $sessions = AgentSession::where('user_id', $userId);
 
         return [
             'conversations' => $sessions->count(),

@@ -15,6 +15,7 @@ class SessionResolver
             [
                 'agent_id' => $this->resolveAgent($message)->id,
                 'user_id' => $message->userId,
+                'title' => 'New Chat',
                 'channel' => $message->channel,
                 'trust_level' => config("channels.{$message->channel}.trust_level", 'standard'),
                 'model' => $message->model,
