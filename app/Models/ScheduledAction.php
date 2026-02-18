@@ -2,13 +2,17 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ScheduledAction extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'agent_id',
+        'user_id',
         'name',
         'schedule',
         'prompt',
@@ -30,5 +34,10 @@ class ScheduledAction extends Model
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 }

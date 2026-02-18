@@ -19,5 +19,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(AgentSeeder::class);
+        $this->call(ScheduledActionSeeder::class);
     }
 }
