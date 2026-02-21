@@ -73,10 +73,10 @@ class BashTool implements Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            $schema->string('command')
+            'command' => $schema->string()
                 ->description('The shell command to execute')
                 ->required(),
-            $schema->string('working_directory')
+            'working_directory' => $schema->string()
                 ->description('Optional working directory for the command'),
         ];
     }

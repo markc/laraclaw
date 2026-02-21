@@ -61,15 +61,14 @@ class HttpRequestTool implements Tool
     public function schema(JsonSchema $schema): array
     {
         return [
-            $schema->string('url')
+            'url' => $schema->string()
                 ->description('The URL to request')
                 ->required(),
-            $schema->string('method')
-                ->description('HTTP method: GET or POST')
-                ->default('GET'),
-            $schema->string('headers')
+            'method' => $schema->string()
+                ->description('HTTP method: GET or POST. Defaults to GET if not specified.'),
+            'headers' => $schema->string()
                 ->description('Optional JSON object of HTTP headers'),
-            $schema->string('body')
+            'body' => $schema->string()
                 ->description('Optional request body as JSON string (for POST)'),
         ];
     }
