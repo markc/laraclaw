@@ -56,12 +56,20 @@ return [
 
     'email' => [
         'enabled' => env('AGENT_EMAIL_ENABLED', false),
+        'protocol' => env('AGENT_EMAIL_PROTOCOL', 'jmap'), // jmap or imap
         'trust_level' => 'standard',
         'address' => env('AGENT_EMAIL_ADDRESS', 'agent@localhost'),
         'allow_from' => array_filter(explode(',', env('AGENT_EMAIL_ALLOW_FROM', ''))),
         'dm_policy' => env('AGENT_EMAIL_DM_POLICY', 'allowlist'), // allowlist, pairing, open
         'max_attachment_size' => 10 * 1024 * 1024, // 10MB
         'allowed_attachment_types' => ['text/plain', 'application/pdf', 'image/*', 'text/csv'],
+
+        'jmap' => [
+            'url' => env('AGENT_EMAIL_JMAP_URL', 'https://localhost:8443'),
+            'username' => env('AGENT_EMAIL_JMAP_USERNAME'),
+            'password' => env('AGENT_EMAIL_JMAP_PASSWORD'),
+            'verify_cert' => (bool) env('AGENT_EMAIL_JMAP_VERIFY_CERT', true),
+        ],
 
         'imap' => [
             'host' => env('AGENT_EMAIL_IMAP_HOST', 'localhost'),

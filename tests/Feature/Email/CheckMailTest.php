@@ -1,7 +1,7 @@
 <?php
 
 use App\Jobs\ProcessEmailMessage;
-use App\Services\Email\ImapService;
+use App\Services\Email\MailboxService;
 use Illuminate\Support\Facades\Queue;
 
 test('dispatches jobs for unseen messages', function () {
@@ -18,14 +18,14 @@ test('dispatches jobs for unseen messages', function () {
         'Test message body.',
     ]);
 
-    $mock = Mockery::mock(ImapService::class);
+    $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once();
     $mock->shouldReceive('fetchUnseen')->once()->andReturn([
         ['uid' => 1, 'raw' => $raw],
     ]);
     $mock->shouldReceive('markSeen')->once()->with(1);
     $mock->shouldReceive('disconnect')->once();
-    $this->app->instance(ImapService::class, $mock);
+    $this->app->instance(MailboxService::class, $mock);
 
     $this->artisan('agent:check-mail')
         ->expectsOutputToContain('1 dispatched')
@@ -58,14 +58,14 @@ test('skips non-allowlisted senders', function () {
         'Buy now!',
     ]);
 
-    $mock = Mockery::mock(ImapService::class);
+    $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once();
     $mock->shouldReceive('fetchUnseen')->once()->andReturn([
         ['uid' => 1, 'raw' => $raw],
     ]);
     $mock->shouldReceive('markSeen')->once()->with(1);
     $mock->shouldReceive('disconnect')->once();
-    $this->app->instance(ImapService::class, $mock);
+    $this->app->instance(MailboxService::class, $mock);
 
     $this->artisan('agent:check-mail')
         ->expectsOutputToContain('0 dispatched, 1 skipped')
@@ -74,15 +74,16 @@ test('skips non-allowlisted senders', function () {
     Queue::assertNothingPushed();
 });
 
-test('handles IMAP connection failure gracefully', function () {
+test('handles connection failure gracefully', function () {
     config(['channels.email.enabled' => true]);
+    config(['channels.email.protocol' => 'jmap']);
 
-    $mock = Mockery::mock(ImapService::class);
+    $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once()->andThrow(new \RuntimeException('Connection refused'));
-    $this->app->instance(ImapService::class, $mock);
+    $this->app->instance(MailboxService::class, $mock);
 
     $this->artisan('agent:check-mail')
-        ->expectsOutputToContain('IMAP connection failed')
+        ->expectsOutputToContain('jmap connection failed')
         ->assertFailed();
 });
 
@@ -100,7 +101,7 @@ test('dispatches multiple messages', function () {
         "Body {$i}.",
     ]);
 
-    $mock = Mockery::mock(ImapService::class);
+    $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once();
     $mock->shouldReceive('fetchUnseen')->once()->andReturn([
         ['uid' => 1, 'raw' => $makeRaw(1)],
@@ -109,7 +110,7 @@ test('dispatches multiple messages', function () {
     ]);
     $mock->shouldReceive('markSeen')->times(3);
     $mock->shouldReceive('disconnect')->once();
-    $this->app->instance(ImapService::class, $mock);
+    $this->app->instance(MailboxService::class, $mock);
 
     $this->artisan('agent:check-mail')
         ->expectsOutputToContain('3 dispatched')

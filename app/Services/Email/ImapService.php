@@ -5,7 +5,7 @@ namespace App\Services\Email;
 use Webklex\PHPIMAP\Client;
 use Webklex\PHPIMAP\ClientManager;
 
-class ImapService
+class ImapService implements MailboxService
 {
     protected ?Client $client = null;
 
@@ -48,7 +48,7 @@ class ImapService
         return $results;
     }
 
-    public function markSeen(int $uid): void
+    public function markSeen(string $uid): void
     {
         $folder = $this->client->getFolder(config('channels.email.imap.folder', 'INBOX'));
         $message = $folder->query()->getMessageByUid($uid);

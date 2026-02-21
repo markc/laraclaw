@@ -5,6 +5,9 @@ namespace App\Providers;
 use App\Listeners\LogToolExecution;
 use App\Models\AgentSession;
 use App\Policies\AgentSessionPolicy;
+use App\Services\Email\ImapService;
+use App\Services\Email\JmapService;
+use App\Services\Email\MailboxService;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
@@ -16,7 +19,11 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->bind(MailboxService::class, function () {
+            return config('channels.email.protocol') === 'imap'
+                ? new ImapService
+                : new JmapService;
+        });
     }
 
     public function boot(): void
