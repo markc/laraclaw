@@ -98,7 +98,7 @@ class ProcessEmailMessage implements ShouldQueue
         );
 
         // Build outbound message ID and references chain
-        $outboundMessageId = '<'.uniqid('claw-', true).'@'.$this->getDomain().'>';
+        $outboundMessageId = uniqid('claw-', true).'@'.$this->getDomain();
         $outboundReferences = trim($references.' '.$messageId);
 
         // Send reply

@@ -29,9 +29,15 @@ class AgentReply extends Mailable
 
     public function headers(): Headers
     {
+        // Strip angle brackets — Symfony's IdentificationHeader adds them
+        $refs = array_filter(array_map(
+            fn (string $ref) => trim($ref, '<>'),
+            explode(' ', $this->references),
+        ));
+
         return new Headers(
             messageId: $this->generateMessageId(),
-            references: array_filter(explode(' ', $this->references)),
+            references: $refs,
             text: [
                 'In-Reply-To' => $this->originalMessageId,
             ],
@@ -50,6 +56,6 @@ class AgentReply extends Mailable
         $address = config('channels.email.address', 'agent@localhost');
         $domain = str_contains($address, '@') ? substr($address, strpos($address, '@') + 1) : $address;
 
-        return '<'.uniqid('claw-', true).'@'.$domain.'>';
+        return uniqid('claw-', true).'@'.$domain;
     }
 }
