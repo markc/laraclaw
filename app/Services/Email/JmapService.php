@@ -132,15 +132,18 @@ class JmapService implements MailboxService
      */
     protected function call(array $methodCalls): array
     {
+        $body = json_encode([
+            'using' => [
+                'urn:ietf:params:jmap:core',
+                'urn:ietf:params:jmap:mail',
+            ],
+            'methodCalls' => $methodCalls,
+        ], JSON_UNESCAPED_SLASHES);
+
         $response = Http::withBasicAuth($this->username, $this->password)
             ->withOptions(['verify' => config('channels.email.jmap.verify_cert', true)])
-            ->post($this->apiUrl, [
-                'using' => [
-                    'urn:ietf:params:jmap:core',
-                    'urn:ietf:params:jmap:mail',
-                ],
-                'methodCalls' => $methodCalls,
-            ]);
+            ->withBody($body, 'application/json')
+            ->post($this->apiUrl);
 
         if (! $response->successful()) {
             throw new RuntimeException('JMAP request failed: HTTP '.$response->status());
