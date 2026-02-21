@@ -1,1 +1,1 @@
-{{ $replyBody }}
+{!! $replyBody !!}
