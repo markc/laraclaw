@@ -2,11 +2,15 @@
 
 namespace App\Providers;
 
+use App\Listeners\LogToolExecution;
 use App\Models\AgentSession;
 use App\Policies\AgentSessionPolicy;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Ai\Events\InvokingTool;
+use Laravel\Ai\Events\ToolInvoked;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -20,5 +24,8 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         Gate::policy(AgentSession::class, AgentSessionPolicy::class);
+
+        Event::listen(InvokingTool::class, [LogToolExecution::class, 'handleInvoking']);
+        Event::listen(ToolInvoked::class, [LogToolExecution::class, 'handleInvoked']);
     }
 }

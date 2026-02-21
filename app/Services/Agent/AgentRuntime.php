@@ -7,7 +7,7 @@ use App\Events\SessionCreated;
 use App\Events\SessionUpdated;
 use App\Models\AgentMessage;
 use App\Models\AgentSession;
-use App\Services\Tools\BuiltIn\CurrentDateTimeTool;
+use App\Services\Tools\ToolResolver;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\AnonymousAgent;
@@ -19,6 +19,7 @@ class AgentRuntime
     public function __construct(
         protected SessionResolver $sessionResolver,
         protected ContextAssembler $contextAssembler,
+        protected ToolResolver $toolResolver,
     ) {}
 
     /**
@@ -182,9 +183,7 @@ class AgentRuntime
         return new AnonymousAgent(
             instructions: $context['system'],
             messages: $messages,
-            tools: [
-                new CurrentDateTimeTool,
-            ],
+            tools: $this->toolResolver->resolve($session),
         );
     }
 

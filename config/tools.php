@@ -7,6 +7,7 @@ return [
     | Trust Level Policies
     |--------------------------------------------------------------------------
     | Define which tools are available at each trust level.
+    | Tool names must match the name() method on each Tool class.
     */
 
     'policies' => [
@@ -16,12 +17,12 @@ return [
             'sandbox' => 'none',
         ],
         'standard' => [
-            'allowed' => ['current_datetime', 'http_request', 'email_send'],
-            'denied' => ['bash', 'file_operation', 'database_query'],
+            'allowed' => ['current_datetime', 'http_request'],
+            'denied' => ['bash'],
             'sandbox' => 'restricted',
         ],
         'restricted' => [
-            'allowed' => ['current_datetime', 'http_request'],
+            'allowed' => ['current_datetime'],
             'denied' => ['*'],
             'sandbox' => 'docker',
         ],
@@ -34,7 +35,6 @@ return [
     */
 
     'sandbox' => [
-        'docker_image' => env('TOOL_SANDBOX_IMAGE', 'php:8.4-cli-alpine'),
         'timeout' => env('TOOL_SANDBOX_TIMEOUT', 30),
         'memory_limit' => env('TOOL_SANDBOX_MEMORY', '256m'),
     ],

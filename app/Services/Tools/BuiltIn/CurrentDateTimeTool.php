@@ -8,6 +8,11 @@ use Laravel\Ai\Tools\Request;
 
 class CurrentDateTimeTool implements Tool
 {
+    public function name(): string
+    {
+        return 'current_datetime';
+    }
+
     public function description(): string
     {
         return 'Get the current date, time, and timezone.';
