@@ -16,11 +16,11 @@ class LogToolExecution
     protected static ?AgentSession $activeSession = null;
 
     /**
-     * Track pending executions by invocation ID.
+     * Track start times by invocation ID.
      *
-     * @var array<string, array{execution: ToolExecution, started_at: float}>
+     * @var array<string, float>
      */
-    protected static array $pending = [];
+    protected static array $startTimes = [];
 
     /**
      * Set the active session before agent invocation.
@@ -32,54 +32,37 @@ class LogToolExecution
 
     public function handleInvoking(InvokingTool $event): void
     {
-        $toolName = method_exists($event->tool, 'name')
-            ? $event->tool->name()
-            : class_basename($event->tool);
-
-        try {
-            $execution = ToolExecution::create([
-                'session_id' => static::$activeSession?->id,
-                'tool_name' => $toolName,
-                'parameters' => $event->arguments,
-                'status' => 'running',
-            ]);
-
-            static::$pending[$event->toolInvocationId] = [
-                'execution' => $execution,
-                'started_at' => microtime(true),
-            ];
-        } catch (\Throwable $e) {
-            Log::warning('Failed to log tool invocation', [
-                'tool' => $toolName,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        static::$startTimes[$event->toolInvocationId] = microtime(true);
     }
 
     public function handleInvoked(ToolInvoked $event): void
     {
-        $pending = static::$pending[$event->toolInvocationId] ?? null;
+        $startedAt = static::$startTimes[$event->toolInvocationId] ?? null;
+        $durationMs = $startedAt
+            ? (int) ((microtime(true) - $startedAt) * 1000)
+            : null;
 
-        if (! $pending) {
-            return;
-        }
-
-        $durationMs = (int) ((microtime(true) - $pending['started_at']) * 1000);
+        $toolName = method_exists($event->tool, 'name')
+            ? $event->tool->name()
+            : class_basename($event->tool);
         $result = is_string($event->result) ? $event->result : json_encode($event->result);
 
         try {
-            $pending['execution']->update([
+            ToolExecution::create([
+                'session_id' => static::$activeSession?->id,
+                'tool_name' => $toolName,
+                'parameters' => $event->arguments,
                 'status' => 'success',
                 'result' => ['output' => mb_substr($result, 0, 10000)],
                 'duration_ms' => $durationMs,
             ]);
         } catch (\Throwable $e) {
-            Log::warning('Failed to update tool execution', [
-                'tool' => $pending['execution']->tool_name,
+            Log::warning('Failed to log tool execution', [
+                'tool' => $toolName,
                 'error' => $e->getMessage(),
             ]);
         }
 
-        unset(static::$pending[$event->toolInvocationId]);
+        unset(static::$startTimes[$event->toolInvocationId]);
     }
 }
