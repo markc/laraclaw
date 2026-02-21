@@ -71,6 +71,10 @@ return [
             'verify_cert' => (bool) env('AGENT_EMAIL_JMAP_VERIFY_CERT', true),
         ],
 
+        'mta_hook' => [
+            'secret' => env('AGENT_EMAIL_MTA_HOOK_SECRET'),
+        ],
+
         'imap' => [
             'host' => env('AGENT_EMAIL_IMAP_HOST', 'localhost'),
             'port' => (int) env('AGENT_EMAIL_IMAP_PORT', 993),
