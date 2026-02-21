@@ -23,3 +23,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 _doc/
+.agents/
+.claude/
+.gemini/
+GEMINI.md
+boost.json
