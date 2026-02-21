@@ -83,17 +83,19 @@ class ProcessEmailMessage implements ShouldQueue
             $session->update(['title' => mb_substr($normalizedSubject, 0, 60)]);
         }
 
-        // Record inbound email thread entry
-        EmailThread::create([
-            'session_id' => $session->id,
-            'from_address' => $from,
-            'to_address' => config('channels.email.address'),
-            'subject' => $subject,
-            'message_id' => $messageId,
-            'in_reply_to' => $inReplyTo,
-            'references' => array_filter(explode(' ', $references)),
-            'direction' => 'inbound',
-        ]);
+        // Record inbound email thread entry (idempotent for retries)
+        EmailThread::firstOrCreate(
+            ['message_id' => $messageId],
+            [
+                'session_id' => $session->id,
+                'from_address' => $from,
+                'to_address' => config('channels.email.address'),
+                'subject' => $subject,
+                'in_reply_to' => $inReplyTo,
+                'references' => array_filter(explode(' ', $references)),
+                'direction' => 'inbound',
+            ],
+        );
 
         // Build outbound message ID and references chain
         $outboundMessageId = '<'.uniqid('claw-', true).'@'.$this->getDomain().'>';
