@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Jobs\ProcessEmailMessage;
+use App\Models\EmailThread;
 use App\Services\Email\EmailParserService;
 use App\Services\Email\MailboxService;
 use Illuminate\Console\Command;
@@ -34,7 +35,7 @@ class AgentCheckMail extends Command
         }
 
         try {
-            $messages = $mailbox->fetchUnseen();
+            $messages = $mailbox->fetchInbox();
         } catch (\Throwable $e) {
             Log::error('agent:check-mail: fetch failed', ['error' => $e->getMessage()]);
             $this->error('Failed to fetch messages: '.$e->getMessage());
@@ -53,13 +54,21 @@ class AgentCheckMail extends Command
 
             if (! empty($allowList) && ! in_array($from, $allowList)) {
                 Log::info('agent:check-mail: skipped non-allowlisted sender', ['from' => $from]);
-                $mailbox->markSeen($msg['uid']);
                 $skipped++;
 
                 continue;
             }
 
+            // Dedup: skip messages already processed (tracked in email_threads)
             $parsed = $parser->parse($msg['raw']);
+            $messageId = $parsed['message_id'] ?? null;
+
+            if ($messageId && EmailThread::where('message_id', $messageId)->exists()) {
+                $skipped++;
+
+                continue;
+            }
+
             ProcessEmailMessage::dispatch($parsed);
             $mailbox->markSeen($msg['uid']);
             $dispatched++;

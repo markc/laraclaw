@@ -1,10 +1,12 @@
 <?php
 
 use App\Jobs\ProcessEmailMessage;
+use App\Models\AgentSession;
+use App\Models\EmailThread;
 use App\Services\Email\MailboxService;
 use Illuminate\Support\Facades\Queue;
 
-test('dispatches jobs for unseen messages', function () {
+test('dispatches jobs for inbox messages', function () {
     Queue::fake();
     config(['channels.email.enabled' => true]);
     config(['channels.email.allow_from' => ['markc@renta.net']]);
@@ -20,7 +22,7 @@ test('dispatches jobs for unseen messages', function () {
 
     $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once();
-    $mock->shouldReceive('fetchUnseen')->once()->andReturn([
+    $mock->shouldReceive('fetchInbox')->once()->andReturn([
         ['uid' => 1, 'raw' => $raw],
     ]);
     $mock->shouldReceive('markSeen')->once()->with(1);
@@ -60,10 +62,9 @@ test('skips non-allowlisted senders', function () {
 
     $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once();
-    $mock->shouldReceive('fetchUnseen')->once()->andReturn([
+    $mock->shouldReceive('fetchInbox')->once()->andReturn([
         ['uid' => 1, 'raw' => $raw],
     ]);
-    $mock->shouldReceive('markSeen')->once()->with(1);
     $mock->shouldReceive('disconnect')->once();
     $this->app->instance(MailboxService::class, $mock);
 
@@ -103,7 +104,7 @@ test('dispatches multiple messages', function () {
 
     $mock = Mockery::mock(MailboxService::class);
     $mock->shouldReceive('connect')->once();
-    $mock->shouldReceive('fetchUnseen')->once()->andReturn([
+    $mock->shouldReceive('fetchInbox')->once()->andReturn([
         ['uid' => 1, 'raw' => $makeRaw(1)],
         ['uid' => 2, 'raw' => $makeRaw(2)],
         ['uid' => 3, 'raw' => $makeRaw(3)],
@@ -117,4 +118,55 @@ test('dispatches multiple messages', function () {
         ->assertSuccessful();
 
     Queue::assertPushed(ProcessEmailMessage::class, 3);
+});
+
+test('skips already-processed messages via message_id dedup', function () {
+    Queue::fake();
+    config(['channels.email.enabled' => true]);
+    config(['channels.email.allow_from' => []]);
+
+    // Create a session and existing EmailThread record to simulate already-processed
+    $session = AgentSession::factory()->create();
+    EmailThread::create([
+        'session_id' => $session->id,
+        'from_address' => 'markc@renta.net',
+        'to_address' => 'claw@kanary.org',
+        'subject' => 'Already processed',
+        'message_id' => '<already-seen@renta.net>',
+        'direction' => 'inbound',
+    ]);
+
+    $rawOld = implode("\n", [
+        'From: markc@renta.net',
+        'To: claw@kanary.org',
+        'Subject: Already processed',
+        'Message-ID: <already-seen@renta.net>',
+        '',
+        'Old message.',
+    ]);
+
+    $rawNew = implode("\n", [
+        'From: markc@renta.net',
+        'To: claw@kanary.org',
+        'Subject: New message',
+        'Message-ID: <new-msg@renta.net>',
+        '',
+        'New message body.',
+    ]);
+
+    $mock = Mockery::mock(MailboxService::class);
+    $mock->shouldReceive('connect')->once();
+    $mock->shouldReceive('fetchInbox')->once()->andReturn([
+        ['uid' => 1, 'raw' => $rawOld],
+        ['uid' => 2, 'raw' => $rawNew],
+    ]);
+    $mock->shouldReceive('markSeen')->once()->with(2); // Only new message gets marked
+    $mock->shouldReceive('disconnect')->once();
+    $this->app->instance(MailboxService::class, $mock);
+
+    $this->artisan('agent:check-mail')
+        ->expectsOutputToContain('1 dispatched, 1 skipped')
+        ->assertSuccessful();
+
+    Queue::assertPushed(ProcessEmailMessage::class, 1);
 });

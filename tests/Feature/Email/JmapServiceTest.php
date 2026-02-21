@@ -84,7 +84,7 @@ test('throws when inbox mailbox not found', function () {
     $service->connect();
 })->throws(RuntimeException::class, 'Inbox mailbox not found');
 
-test('fetches unseen messages', function () {
+test('fetches inbox messages', function () {
     Http::fake([
         'mail.example.com/.well-known/jmap' => Http::response([
             'apiUrl' => 'https://mail.example.com/jmap',
@@ -103,7 +103,7 @@ test('fetches unseen messages', function () {
                     ], 'mailboxes'],
                 ],
             ])
-            // Second call: Email/query during fetchUnseen
+            // Second call: Email/query during fetchInbox
             ->push([
                 'methodResponses' => [
                     ['Email/query', [
@@ -111,7 +111,7 @@ test('fetches unseen messages', function () {
                     ], 'query'],
                 ],
             ])
-            // Third call: Email/get during fetchUnseen
+            // Third call: Email/get during fetchInbox
             ->push([
                 'methodResponses' => [
                     ['Email/get', [
@@ -148,7 +148,7 @@ test('fetches unseen messages', function () {
 
     $service = new JmapService;
     $service->connect();
-    $messages = $service->fetchUnseen();
+    $messages = $service->fetchInbox();
 
     expect($messages)->toHaveCount(2)
         ->and($messages[0]['uid'])->toBe('email-001')
@@ -159,7 +159,7 @@ test('fetches unseen messages', function () {
         ->and($messages[1]['raw'])->toContain('From: user@example.com');
 });
 
-test('returns empty array when no unseen messages', function () {
+test('returns empty array when no inbox messages', function () {
     Http::fake([
         'mail.example.com/.well-known/jmap' => Http::response([
             'apiUrl' => 'https://mail.example.com/jmap',
@@ -188,7 +188,7 @@ test('returns empty array when no unseen messages', function () {
 
     $service = new JmapService;
     $service->connect();
-    $messages = $service->fetchUnseen();
+    $messages = $service->fetchInbox();
 
     expect($messages)->toBeEmpty();
 });
@@ -283,7 +283,7 @@ test('builds raw email with reply headers', function () {
 
     $service = new JmapService;
     $service->connect();
-    $messages = $service->fetchUnseen();
+    $messages = $service->fetchInbox();
 
     $raw = $messages[0]['raw'];
 

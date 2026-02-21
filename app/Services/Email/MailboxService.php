@@ -7,11 +7,11 @@ interface MailboxService
     public function connect(): void;
 
     /**
-     * Fetch unseen messages from the inbox.
+     * Fetch recent inbox messages (regardless of seen/unseen state).
      *
      * @return array<int, array{uid: string, raw: string}>
      */
-    public function fetchUnseen(): array;
+    public function fetchInbox(): array;
 
     public function markSeen(string $uid): void;
 

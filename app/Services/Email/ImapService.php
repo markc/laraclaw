@@ -28,14 +28,14 @@ class ImapService implements MailboxService
     }
 
     /**
-     * Fetch unseen messages from the configured folder.
+     * Fetch recent inbox messages (last 24 hours, regardless of seen state).
      *
      * @return array<int, array{uid: int, raw: string}>
      */
-    public function fetchUnseen(): array
+    public function fetchInbox(): array
     {
         $folder = $this->client->getFolder(config('channels.email.imap.folder', 'INBOX'));
-        $messages = $folder->query()->unseen()->get();
+        $messages = $folder->query()->since(now()->subDay())->get();
 
         $results = [];
         foreach ($messages as $message) {

@@ -50,14 +50,16 @@ class JmapService implements MailboxService
         $this->inboxId = $this->findInboxId();
     }
 
-    public function fetchUnseen(): array
+    public function fetchInbox(): array
     {
+        $since = now()->subHours(24)->toIso8601String();
+
         $response = $this->call([
             ['Email/query', [
                 'accountId' => $this->accountId,
                 'filter' => [
                     'inMailbox' => $this->inboxId,
-                    'notKeyword' => '$seen',
+                    'after' => $since,
                 ],
                 'sort' => [['property' => 'receivedAt', 'isAscending' => false]],
                 'limit' => 50,
