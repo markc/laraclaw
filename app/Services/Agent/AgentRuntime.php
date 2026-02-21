@@ -5,6 +5,7 @@ namespace App\Services\Agent;
 use App\DTOs\IncomingMessage;
 use App\Events\SessionCreated;
 use App\Events\SessionUpdated;
+use App\Listeners\LogToolExecution;
 use App\Models\AgentMessage;
 use App\Models\AgentSession;
 use App\Services\Tools\ToolResolver;
@@ -166,6 +167,8 @@ class AgentRuntime
      */
     protected function buildAgent(array $context, AgentSession $session): AnonymousAgent
     {
+        LogToolExecution::setSession($session);
+
         // Convert history to SDK Message objects
         $messages = collect($context['messages'])
             ->filter(fn ($m) => $m['role'] !== 'user' || $m !== end($context['messages']))

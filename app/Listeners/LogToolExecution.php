@@ -2,6 +2,7 @@
 
 namespace App\Listeners;
 
+use App\Models\AgentSession;
 use App\Models\ToolExecution;
 use Illuminate\Support\Facades\Log;
 use Laravel\Ai\Events\InvokingTool;
@@ -10,11 +11,24 @@ use Laravel\Ai\Events\ToolInvoked;
 class LogToolExecution
 {
     /**
+     * The active session for tool execution logging.
+     */
+    protected static ?AgentSession $activeSession = null;
+
+    /**
      * Track pending executions by invocation ID.
      *
      * @var array<string, array{execution: ToolExecution, started_at: float}>
      */
     protected static array $pending = [];
+
+    /**
+     * Set the active session before agent invocation.
+     */
+    public static function setSession(AgentSession $session): void
+    {
+        static::$activeSession = $session;
+    }
 
     public function handleInvoking(InvokingTool $event): void
     {
@@ -24,6 +38,7 @@ class LogToolExecution
 
         try {
             $execution = ToolExecution::create([
+                'session_id' => static::$activeSession?->id,
                 'tool_name' => $toolName,
                 'parameters' => $event->arguments,
                 'status' => 'running',
