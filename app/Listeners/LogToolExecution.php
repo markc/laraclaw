@@ -23,6 +23,13 @@ class LogToolExecution
     protected static array $startTimes = [];
 
     /**
+     * Track processed invocation IDs to prevent duplicates.
+     *
+     * @var array<string, true>
+     */
+    protected static array $processed = [];
+
+    /**
      * Set the active session before agent invocation.
      */
     public static function setSession(AgentSession $session): void
@@ -37,6 +44,12 @@ class LogToolExecution
 
     public function handleInvoked(ToolInvoked $event): void
     {
+        if (isset(static::$processed[$event->toolInvocationId])) {
+            return;
+        }
+
+        static::$processed[$event->toolInvocationId] = true;
+
         $startedAt = static::$startTimes[$event->toolInvocationId] ?? null;
         $durationMs = $startedAt
             ? (int) ((microtime(true) - $startedAt) * 1000)
