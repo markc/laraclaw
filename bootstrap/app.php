@@ -8,6 +8,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 return Application::configure(basePath: dirname(__DIR__))
     ->withSchedule(function (Schedule $schedule): void {
         $schedule->command('agent:heartbeat')->everyMinute();
+        $schedule->command('agent:check-mail')->everyMinute()->withoutOverlapping();
     })
     ->withRouting(
         web: __DIR__.'/../routes/web.php',

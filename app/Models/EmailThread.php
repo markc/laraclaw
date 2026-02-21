@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmailThread extends Model
 {
+    /** @use HasFactory<\Database\Factories\EmailThreadFactory> */
+    use HasFactory;
+
     protected $fillable = [
         'session_id',
         'from_address',

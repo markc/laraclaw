@@ -2,12 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AgentSession extends Model
 {
+    /** @use HasFactory<\Database\Factories\AgentSessionFactory> */
+    use HasFactory;
+
     protected $table = 'agent_sessions';
 
     protected $fillable = [
