@@ -9,7 +9,7 @@ beforeEach(function () {
 test('parses plain text email', function () {
     $raw = implode("\r\n", [
         'From: Mark <markc@renta.net>',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Hello agent',
         'Date: Tue, 18 Feb 2026 10:00:00 +1000',
         'Message-ID: <abc123@renta.net>',
@@ -20,7 +20,7 @@ test('parses plain text email', function () {
     $parsed = $this->parser->parse($raw);
 
     expect($parsed['from'])->toBe('markc@renta.net')
-        ->and($parsed['to'])->toBe('claw@kanary.org')
+        ->and($parsed['to'])->toBe('ai@kanary.org')
         ->and($parsed['subject'])->toBe('Hello agent')
         ->and($parsed['message_id'])->toBe('<abc123@renta.net>')
         ->and($parsed['body'])->toBe('What is the weather today?');
@@ -29,7 +29,7 @@ test('parses plain text email', function () {
 test('strips email signature', function () {
     $raw = implode("\n", [
         'From: user@example.com',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Test',
         '',
         'Main body text here.',
@@ -47,7 +47,7 @@ test('strips email signature', function () {
 test('strips mobile signature', function () {
     $raw = implode("\n", [
         'From: user@example.com',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Test',
         '',
         'Quick reply.',
@@ -63,7 +63,7 @@ test('strips mobile signature', function () {
 test('decodes MIME encoded subject', function () {
     $raw = implode("\n", [
         'From: user@example.com',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: =?UTF-8?B?'.base64_encode('Héllo').'?=',
         '',
         'Body.',
@@ -85,7 +85,7 @@ test('normalizes subject by stripping Re and Fwd prefixes', function () {
 test('parses envelope for quick routing', function () {
     $raw = implode("\n", [
         'From: Mark <markc@renta.net>',
-        'To: Agent <claw@kanary.org>',
+        'To: Agent <ai@kanary.org>',
         'Subject: Quick question',
         'Message-ID: <xyz@renta.net>',
         '',
@@ -95,14 +95,14 @@ test('parses envelope for quick routing', function () {
     $envelope = $this->parser->parseEnvelope($raw);
 
     expect($envelope['from'])->toBe('markc@renta.net')
-        ->and($envelope['to'])->toBe('claw@kanary.org')
+        ->and($envelope['to'])->toBe('ai@kanary.org')
         ->and($envelope['subject'])->toBe('Quick question');
 });
 
 test('parses In-Reply-To and References headers', function () {
     $raw = implode("\n", [
         'From: markc@renta.net',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Re: Hello',
         'Message-ID: <reply1@renta.net>',
         'In-Reply-To: <original@kanary.org>',
@@ -121,7 +121,7 @@ test('handles multipart message extracting text/plain', function () {
     $boundary = 'boundary123';
     $raw = implode("\n", [
         'From: user@example.com',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Multipart test',
         'Content-Type: multipart/alternative; boundary="'.$boundary.'"',
         '',
@@ -146,7 +146,7 @@ test('decodes base64 body part', function () {
     $encoded = base64_encode('Decoded content here.');
     $raw = implode("\n", [
         'From: user@example.com',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Base64 test',
         'Content-Type: multipart/alternative; boundary="'.$boundary.'"',
         '',

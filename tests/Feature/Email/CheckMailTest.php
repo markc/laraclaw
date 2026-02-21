@@ -13,7 +13,7 @@ test('dispatches jobs for inbox messages', function () {
 
     $raw = implode("\n", [
         'From: markc@renta.net',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Hello',
         'Message-ID: <test1@renta.net>',
         '',
@@ -54,7 +54,7 @@ test('skips non-allowlisted senders', function () {
 
     $raw = implode("\n", [
         'From: stranger@evil.com',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Spam',
         '',
         'Buy now!',
@@ -95,7 +95,7 @@ test('dispatches multiple messages', function () {
 
     $makeRaw = fn (int $i) => implode("\n", [
         "From: user{$i}@example.com",
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         "Subject: Message {$i}",
         "Message-ID: <msg{$i}@example.com>",
         '',
@@ -130,7 +130,7 @@ test('skips already-processed messages via message_id dedup', function () {
     EmailThread::create([
         'session_id' => $session->id,
         'from_address' => 'markc@renta.net',
-        'to_address' => 'claw@kanary.org',
+        'to_address' => 'ai@kanary.org',
         'subject' => 'Already processed',
         'message_id' => '<already-seen@renta.net>',
         'direction' => 'inbound',
@@ -138,7 +138,7 @@ test('skips already-processed messages via message_id dedup', function () {
 
     $rawOld = implode("\n", [
         'From: markc@renta.net',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: Already processed',
         'Message-ID: <already-seen@renta.net>',
         '',
@@ -147,7 +147,7 @@ test('skips already-processed messages via message_id dedup', function () {
 
     $rawNew = implode("\n", [
         'From: markc@renta.net',
-        'To: claw@kanary.org',
+        'To: ai@kanary.org',
         'Subject: New message',
         'Message-ID: <new-msg@renta.net>',
         '',

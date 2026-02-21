@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Queue;
 beforeEach(function () {
     config(['channels.email.enabled' => true]);
     config(['channels.email.allow_from' => ['markc@renta.net']]);
-    config(['channels.email.address' => 'claw@kanary.org']);
+    config(['channels.email.address' => 'ai@kanary.org']);
     config(['channels.email.mta_hook.secret' => 'test-secret-123']);
 });
 
@@ -21,18 +21,18 @@ function mtaHookPayload(array $overrides = []): array
         ],
         'envelope' => [
             'from' => ['address' => 'markc@renta.net', 'parameters' => null],
-            'to' => [['address' => 'claw@kanary.org', 'parameters' => null]],
+            'to' => [['address' => 'ai@kanary.org', 'parameters' => null]],
         ],
         'message' => [
             'headers' => [
                 ['From', 'Mark <markc@renta.net>'],
-                ['To', 'Claw <claw@kanary.org>'],
+                ['To', 'AI <ai@kanary.org>'],
                 ['Subject', 'Hello agent'],
                 ['Message-ID', '<hook-test-1@renta.net>'],
                 ['Date', 'Fri, 21 Feb 2026 10:00:00 +1000'],
             ],
             'serverHeaders' => [
-                ['Received', 'from mail.renta.net by claw.goldcoast.org (Stalwart) with ESMTPS'],
+                ['Received', 'from mail.renta.net by claw.kanary.org (Stalwart) with ESMTPS'],
             ],
             'contents' => "What is the weather today?\r\n",
             'size' => 250,
@@ -80,7 +80,7 @@ test('skips non-allowlisted sender but returns accept', function () {
         'message' => [
             'headers' => [
                 ['From', 'stranger@evil.com'],
-                ['To', 'claw@kanary.org'],
+                ['To', 'ai@kanary.org'],
                 ['Subject', 'Spam'],
                 ['Message-ID', '<spam@evil.com>'],
             ],
@@ -125,7 +125,7 @@ test('handles missing message body gracefully', function () {
         'message' => [
             'headers' => [
                 ['From', 'markc@renta.net'],
-                ['To', 'claw@kanary.org'],
+                ['To', 'ai@kanary.org'],
                 ['Subject', 'Empty body'],
                 ['Message-ID', '<empty-body@renta.net>'],
             ],

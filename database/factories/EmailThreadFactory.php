@@ -18,7 +18,7 @@ class EmailThreadFactory extends Factory
         return [
             'session_id' => AgentSession::factory(),
             'from_address' => fake()->safeEmail(),
-            'to_address' => 'claw@kanary.org',
+            'to_address' => 'ai@kanary.org',
             'subject' => fake()->sentence(4),
             'message_id' => '<'.fake()->uuid().'@'.fake()->domainName().'>',
             'in_reply_to' => null,
@@ -30,7 +30,7 @@ class EmailThreadFactory extends Factory
     public function outbound(): static
     {
         return $this->state(fn () => [
-            'from_address' => 'claw@kanary.org',
+            'from_address' => 'ai@kanary.org',
             'to_address' => fake()->safeEmail(),
             'direction' => 'outbound',
         ]);

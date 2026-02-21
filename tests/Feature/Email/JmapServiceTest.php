@@ -119,7 +119,7 @@ test('fetches inbox messages', function () {
                             [
                                 'id' => 'email-001',
                                 'from' => [['name' => 'Mark', 'email' => 'markc@renta.net']],
-                                'to' => [['name' => '', 'email' => 'claw@goldcoast.org']],
+                                'to' => [['name' => '', 'email' => 'ai@kanary.org']],
                                 'subject' => 'Hello',
                                 'receivedAt' => '2026-02-21T10:00:00Z',
                                 'messageId' => ['abc123@renta.net'],
@@ -131,7 +131,7 @@ test('fetches inbox messages', function () {
                             [
                                 'id' => 'email-002',
                                 'from' => [['name' => '', 'email' => 'user@example.com']],
-                                'to' => [['name' => '', 'email' => 'claw@goldcoast.org']],
+                                'to' => [['name' => '', 'email' => 'ai@kanary.org']],
                                 'subject' => 'Another',
                                 'receivedAt' => '2026-02-21T11:00:00Z',
                                 'messageId' => ['def456@example.com'],
@@ -266,12 +266,12 @@ test('builds raw email with reply headers', function () {
                             [
                                 'id' => 'email-reply',
                                 'from' => [['name' => 'Mark', 'email' => 'markc@renta.net']],
-                                'to' => [['name' => 'Claw', 'email' => 'claw@goldcoast.org']],
+                                'to' => [['name' => 'AI', 'email' => 'ai@kanary.org']],
                                 'subject' => 'Re: Previous topic',
                                 'receivedAt' => '2026-02-21T12:00:00Z',
                                 'messageId' => ['reply1@renta.net'],
-                                'inReplyTo' => ['original@goldcoast.org'],
-                                'references' => ['original@goldcoast.org', 'mid2@goldcoast.org'],
+                                'inReplyTo' => ['original@kanary.org'],
+                                'references' => ['original@kanary.org', 'mid2@kanary.org'],
                                 'textBody' => [['partId' => 'p1']],
                                 'bodyValues' => ['p1' => ['value' => 'Follow up message.']],
                             ],
@@ -287,8 +287,8 @@ test('builds raw email with reply headers', function () {
 
     $raw = $messages[0]['raw'];
 
-    expect($raw)->toContain('In-Reply-To: <original@goldcoast.org>')
-        ->and($raw)->toContain('References: original@goldcoast.org mid2@goldcoast.org')
+    expect($raw)->toContain('In-Reply-To: <original@kanary.org>')
+        ->and($raw)->toContain('References: original@kanary.org mid2@kanary.org')
         ->and($raw)->toContain('Message-ID: <reply1@renta.net>')
         ->and($raw)->toContain('Subject: Re: Previous topic')
         ->and($raw)->toContain('Follow up message.');

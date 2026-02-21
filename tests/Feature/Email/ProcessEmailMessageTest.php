@@ -15,7 +15,7 @@ beforeEach(function () {
 
     config(['channels.email.enabled' => true]);
     config(['channels.email.allow_from' => ['markc@renta.net']]);
-    config(['channels.email.address' => 'claw@kanary.org']);
+    config(['channels.email.address' => 'ai@kanary.org']);
 });
 
 test('processes email and sends reply', function () {
@@ -44,7 +44,7 @@ test('processes email and sends reply', function () {
 
     $parsed = [
         'from' => 'markc@renta.net',
-        'to' => 'claw@kanary.org',
+        'to' => 'ai@kanary.org',
         'subject' => 'Hello agent',
         'date' => 'Tue, 18 Feb 2026 10:00:00 +1000',
         'message_id' => '<abc123@renta.net>',
@@ -74,7 +74,7 @@ test('rejects non-allowlisted sender', function () {
 
     $parsed = [
         'from' => 'stranger@evil.com',
-        'to' => 'claw@kanary.org',
+        'to' => 'ai@kanary.org',
         'subject' => 'Spam',
         'date' => null,
         'message_id' => '<spam@evil.com>',
@@ -98,7 +98,7 @@ test('rejects sender with no matching user', function () {
 
     $parsed = [
         'from' => 'unknown@example.com',
-        'to' => 'claw@kanary.org',
+        'to' => 'ai@kanary.org',
         'subject' => 'Hello',
         'date' => null,
         'message_id' => '<unknown@example.com>',
@@ -135,7 +135,7 @@ test('reuses existing session via In-Reply-To', function () {
 
     $parsed = [
         'from' => 'markc@renta.net',
-        'to' => 'claw@kanary.org',
+        'to' => 'ai@kanary.org',
         'subject' => 'Re: Hello',
         'date' => null,
         'message_id' => '<reply-2@renta.net>',
@@ -186,7 +186,7 @@ test('sets session title from normalized subject', function () {
 
     $parsed = [
         'from' => 'markc@renta.net',
-        'to' => 'claw@kanary.org',
+        'to' => 'ai@kanary.org',
         'subject' => 'Project planning for Q2',
         'date' => null,
         'message_id' => '<title-test@renta.net>',
