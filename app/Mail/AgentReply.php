@@ -47,6 +47,9 @@ class AgentReply extends Mailable
 
     protected function generateMessageId(): string
     {
-        return '<'.uniqid('claw-', true).'@'.config('channels.email.address', 'localhost').'>';
+        $address = config('channels.email.address', 'agent@localhost');
+        $domain = str_contains($address, '@') ? substr($address, strpos($address, '@') + 1) : $address;
+
+        return '<'.uniqid('claw-', true).'@'.$domain.'>';
     }
 }
