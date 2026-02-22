@@ -6,6 +6,7 @@ use App\DTOs\IncomingMessage;
 use App\Models\AgentSession;
 use App\Models\User;
 use App\Services\Agent\AgentRuntime;
+use App\Services\Agent\IntentRouter;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 
@@ -22,7 +23,7 @@ class AgentChat extends Command
 
     protected $description = 'Interactive AI chat in the terminal via LaRaClaw agent';
 
-    public function handle(AgentRuntime $runtime): int
+    public function handle(AgentRuntime $runtime, IntentRouter $intentRouter): int
     {
         if ($this->option('list')) {
             return $this->listSessions();
@@ -48,19 +49,49 @@ class AgentChat extends Command
         while (true) {
             $input = textarea(label: 'You', placeholder: 'Type your message...', required: true);
 
-            if ($this->isCommand($input)) {
-                $result = $this->handleCommand($input, $user, $sessionKey);
-                if ($result === 'quit') {
-                    return self::SUCCESS;
-                }
-                if ($result === 'new') {
-                    $sessionKey = 'tui.'.$user->id.'.'.Str::uuid7()->toString();
-                    $model = $this->option('model') ?? config('agent.default_model');
-                    note('Started new session');
-                    note('');
-                }
+            // TUI-only commands (not handled by IntentRouter)
+            $trimmed = strtolower(trim($input));
+            if (in_array($trimmed, ['/quit', '/exit', '/q'])) {
+                return self::SUCCESS;
+            }
+            if ($trimmed === '/sessions') {
+                $this->showSessions($user);
 
                 continue;
+            }
+            if (str_starts_with($trimmed, '/resume ')) {
+                $this->resumeSession($trimmed, $sessionKey);
+
+                continue;
+            }
+
+            // Delegate slash commands to IntentRouter
+            if (str_starts_with(trim($input), '/')) {
+                $session = AgentSession::where('session_key', $sessionKey)->first();
+                $message = new IncomingMessage(
+                    channel: 'tui',
+                    sessionKey: $sessionKey,
+                    content: $input,
+                    sender: 'operator',
+                    userId: $user->id,
+                    model: $model,
+                );
+
+                $intent = $intentRouter->classify($message, $session);
+
+                if ($intent->isShortCircuit()) {
+                    // Handle /new specially in TUI
+                    if ($intent->commandName === 'new') {
+                        $sessionKey = 'tui.'.$user->id.'.'.Str::uuid7()->toString();
+                        $model = $this->option('model') ?? config('agent.default_model');
+                        note('Started new session');
+                        note('');
+                    } else {
+                        note($intent->response.PHP_EOL);
+                    }
+
+                    continue;
+                }
             }
 
             $message = new IncomingMessage(
@@ -81,27 +112,7 @@ class AgentChat extends Command
         }
     }
 
-    protected function isCommand(string $input): bool
-    {
-        return str_starts_with(trim($input), '/');
-    }
-
-    protected function handleCommand(string $input, User $user, string &$sessionKey): ?string
-    {
-        $command = strtolower(trim($input));
-
-        return match (true) {
-            in_array($command, ['/quit', '/exit', '/q']) => 'quit',
-            $command === '/new' => 'new',
-            $command === '/sessions' => $this->showSessions($user),
-            str_starts_with($command, '/resume ') => $this->resumeSession($command, $sessionKey),
-            $command === '/info' => $this->showInfo($sessionKey),
-            $command === '/help' => $this->showHelp(),
-            default => $this->unknownCommand($command),
-        };
-    }
-
-    protected function showSessions(User $user): null
+    protected function showSessions(User $user): void
     {
         $sessions = AgentSession::where('channel', 'tui')
             ->where('user_id', $user->id)
@@ -112,7 +123,7 @@ class AgentChat extends Command
         if ($sessions->isEmpty()) {
             note('No TUI sessions found.');
 
-            return null;
+            return;
         }
 
         note('Recent TUI sessions:');
@@ -122,11 +133,9 @@ class AgentChat extends Command
             note("      /resume {$session->session_key}");
         }
         note('');
-
-        return null;
     }
 
-    protected function resumeSession(string $command, string &$sessionKey): null
+    protected function resumeSession(string $command, string &$sessionKey): void
     {
         $key = trim(Str::after($command, '/resume '));
         $session = AgentSession::where('session_key', $key)->first();
@@ -134,60 +143,13 @@ class AgentChat extends Command
         if (! $session) {
             note("Session not found: {$key}");
 
-            return null;
+            return;
         }
 
         $sessionKey = $key;
         $messageCount = $session->messages()->count();
         note("Resumed: {$session->title} ({$messageCount} messages)");
         note('');
-
-        return null;
-    }
-
-    protected function showInfo(string $sessionKey): null
-    {
-        $session = AgentSession::where('session_key', $sessionKey)->first();
-
-        if (! $session) {
-            note('Session not yet created (send a message first).');
-
-            return null;
-        }
-
-        $messageCount = $session->messages()->count();
-        $toolCount = $session->toolExecutions()->count();
-        note("Session: {$session->session_key}");
-        note("Title: {$session->title}");
-        note("Model: {$session->getEffectiveModel()}");
-        note("Provider: {$session->getEffectiveProvider()}");
-        note("Messages: {$messageCount}");
-        note("Tool executions: {$toolCount}");
-        note("Trust level: {$session->trust_level}");
-        note('');
-
-        return null;
-    }
-
-    protected function showHelp(): null
-    {
-        note('Commands:');
-        note('  /quit, /exit, /q  — Exit the chat');
-        note('  /new              — Start a new session');
-        note('  /sessions         — List recent TUI sessions');
-        note('  /resume <key>     — Resume a session by key');
-        note('  /info             — Show current session details');
-        note('  /help             — Show this help');
-        note('');
-
-        return null;
-    }
-
-    protected function unknownCommand(string $command): null
-    {
-        note("Unknown command: {$command} (type /help)");
-
-        return null;
     }
 
     protected function listSessions(): int

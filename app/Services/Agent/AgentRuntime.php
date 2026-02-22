@@ -21,6 +21,7 @@ class AgentRuntime
         protected SessionResolver $sessionResolver,
         protected ContextAssembler $contextAssembler,
         protected ToolResolver $toolResolver,
+        protected IntentRouter $intentRouter,
     ) {}
 
     /**
@@ -29,6 +30,22 @@ class AgentRuntime
     public function handleMessage(IncomingMessage $message): string
     {
         $session = $this->sessionResolver->resolve($message);
+
+        // Check intent router for slash commands
+        $intent = $this->intentRouter->classify($message, $session);
+        if ($intent->isShortCircuit()) {
+            $this->saveMessage($session, 'user', $message->content, [
+                'channel' => $message->channel,
+                'sender' => $message->sender,
+            ]);
+            $this->saveMessage($session, 'assistant', $intent->response, [
+                'intent' => $intent->type->value,
+                'command' => $intent->commandName,
+            ]);
+            $session->update(['last_activity_at' => now()]);
+
+            return $intent->response;
+        }
 
         // Save user message
         $this->saveMessage($session, 'user', $message->content, [
@@ -118,6 +135,35 @@ class AgentRuntime
     {
         $session = $this->sessionResolver->resolve($message);
         $isNew = $session->wasRecentlyCreated;
+
+        // Check intent router for slash commands
+        $intent = $this->intentRouter->classify($message, $session);
+        if ($intent->isShortCircuit()) {
+            $this->saveMessage($session, 'user', $message->content, [
+                'channel' => $message->channel,
+                'sender' => $message->sender,
+            ]);
+            $this->saveMessage($session, 'assistant', $intent->response, [
+                'intent' => $intent->type->value,
+                'command' => $intent->commandName,
+            ]);
+
+            // Broadcast synthetic stream_end with the response
+            $channelKey = str_replace(':', '.', $message->sessionKey);
+            $channel = new Channel('private-chat.session.'.$channelKey);
+
+            broadcast(new \App\Events\StreamEnd($channel, $intent->response))->toOthers();
+
+            $session->update(['last_activity_at' => now()]);
+
+            if ($isNew) {
+                event(new SessionCreated($session->fresh()));
+            } else {
+                event(new SessionUpdated($session->fresh()));
+            }
+
+            return;
+        }
 
         // Save user message
         $this->saveMessage($session, 'user', $message->content, [

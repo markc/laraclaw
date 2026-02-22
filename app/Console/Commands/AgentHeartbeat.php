@@ -11,11 +11,12 @@ class AgentHeartbeat extends Command
 {
     protected $signature = 'agent:heartbeat';
 
-    protected $description = 'Evaluate and dispatch due scheduled actions';
+    protected $description = 'Evaluate and dispatch due scheduled actions (cron-type only)';
 
     public function handle(): int
     {
         $actions = ScheduledAction::query()
+            ->cron()
             ->where('is_enabled', true)
             ->where(function ($query) {
                 $query->where('next_run_at', '<=', now())

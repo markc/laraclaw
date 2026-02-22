@@ -3,11 +3,14 @@
 namespace App\Jobs;
 
 use App\DTOs\IncomingMessage;
+use App\Enums\ContentSource;
 use App\Mail\AgentReply;
 use App\Models\EmailThread;
 use App\Models\User;
 use App\Services\Agent\AgentRuntime;
 use App\Services\Email\EmailParserService;
+use App\Services\Security\ContentSanitizer;
+use App\Services\Security\InjectionAuditLog;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -60,6 +63,22 @@ class ProcessEmailMessage implements ShouldQueue
         $sessionKey = $session
             ? $session->session_key
             : 'email.'.$user->id.'.'.Str::uuid();
+
+        // Sanitize email body for prompt injection
+        $sanitizer = app(ContentSanitizer::class);
+        $sanitizeResult = $sanitizer->sanitize($body, ContentSource::EmailBody, 'standard');
+
+        if ($sanitizeResult->injectionDetected) {
+            $auditLog = app(InjectionAuditLog::class);
+            $auditLog->log($sanitizeResult);
+
+            Log::warning('ProcessEmailMessage: injection detected in email body', [
+                'from' => $from,
+                'patterns' => $sanitizeResult->detections,
+            ]);
+        }
+
+        $body = $sanitizeResult->content;
 
         $parser = app(EmailParserService::class);
         $normalizedSubject = $parser->normalizeSubject($subject);

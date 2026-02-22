@@ -63,14 +63,12 @@ it('resumes an existing session with --session flag', function () {
         ->expectsQuestion('You', '/quit');
 });
 
-it('handles /help command', function () {
+it('handles /help command via IntentRouter', function () {
     User::factory()->create();
 
     $this->artisan('agent:chat')
         ->expectsQuestion('You', '/help')
-        ->expectsOutputToContain('/quit')
-        ->expectsOutputToContain('/sessions')
-        ->expectsOutputToContain('/new')
+        ->expectsOutputToContain('Available commands')
         ->expectsQuestion('You', '/quit');
 });
 
@@ -112,6 +110,6 @@ it('handles unknown commands gracefully', function () {
 
     $this->artisan('agent:chat')
         ->expectsQuestion('You', '/foobar')
-        ->expectsOutputToContain('Unknown command: /foobar')
+        ->expectsOutputToContain('Unknown command')
         ->expectsQuestion('You', '/quit');
 });

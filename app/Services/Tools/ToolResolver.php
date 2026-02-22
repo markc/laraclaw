@@ -3,9 +3,12 @@
 namespace App\Services\Tools;
 
 use App\Models\AgentSession;
+use App\Services\Security\ContentSanitizer;
+use App\Services\Security\InjectionAuditLog;
 use App\Services\Tools\BuiltIn\BashTool;
 use App\Services\Tools\BuiltIn\CurrentDateTimeTool;
 use App\Services\Tools\BuiltIn\HttpRequestTool;
+use App\Services\Tools\BuiltIn\SandboxedBashTool;
 use Laravel\Ai\Contracts\Tool;
 
 class ToolResolver
@@ -17,10 +20,14 @@ class ToolResolver
      */
     protected function registry(): array
     {
+        $bashClass = config('sandbox.driver') !== 'none'
+            ? SandboxedBashTool::class
+            : BashTool::class;
+
         return [
             'current_datetime' => CurrentDateTimeTool::class,
             'http_request' => HttpRequestTool::class,
-            'bash' => BashTool::class,
+            'bash' => $bashClass,
         ];
     }
 
@@ -39,11 +46,24 @@ class ToolResolver
         $allowed = $policy['allowed'] ?? [];
         $denied = $policy['denied'] ?? [];
 
-        return collect($this->registry())
+        $tools = collect($this->registry())
             ->filter(fn ($class, $name) => $this->isAllowed($name, $allowed, $denied))
             ->map(fn ($class) => app($class))
             ->values()
             ->all();
+
+        // Wrap tools with sanitizer when enabled
+        if (config('security.sanitizer.enabled', true)) {
+            $sanitizer = app(ContentSanitizer::class);
+            $auditLog = app(InjectionAuditLog::class);
+
+            $tools = array_map(
+                fn (Tool $tool) => new SanitizingToolWrapper($tool, $sanitizer, $auditLog),
+                $tools,
+            );
+        }
+
+        return $tools;
     }
 
     protected function isAllowed(string $toolName, array $allowed, array $denied): bool

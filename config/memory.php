@@ -8,9 +8,21 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'embedding_provider' => env('MEMORY_EMBEDDING_PROVIDER', 'openai'),
-    'embedding_model' => env('MEMORY_EMBEDDING_MODEL', 'text-embedding-3-small'),
-    'embedding_dimensions' => 1536,
+    'embedding_provider' => env('MEMORY_EMBEDDING_PROVIDER', 'ollama'),
+    'embedding_model' => env('MEMORY_EMBEDDING_MODEL', 'nomic-embed-text'),
+    'embedding_dimensions' => (int) env('MEMORY_EMBEDDING_DIMENSIONS', 768),
+    'ollama_host' => env('OLLAMA_HOST', 'http://192.168.2.130:11434'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Embedding Generation
+    |--------------------------------------------------------------------------
+    */
+
+    'embedding' => [
+        'timeout' => (int) env('MEMORY_EMBEDDING_TIMEOUT', 30),
+        'max_content_length' => (int) env('MEMORY_MAX_CONTENT_LENGTH', 8000),
+    ],
 
     /*
     |--------------------------------------------------------------------------
@@ -19,9 +31,12 @@ return [
     */
 
     'search' => [
+        'enabled' => (bool) env('MEMORY_SEARCH_ENABLED', true),
         'default_limit' => 10,
         'vector_weight' => 0.7,
         'keyword_weight' => 0.3,
+        'rrf_k' => 60,
+        'candidate_multiplier' => 3,
     ],
 
     /*
@@ -31,7 +46,7 @@ return [
     */
 
     'auto_index' => [
-        'enabled' => true,
+        'enabled' => (bool) env('MEMORY_AUTO_INDEX_ENABLED', true),
         'debounce_seconds' => 1.5,
         'watch_paths' => ['memory/', 'MEMORY.md'],
     ],

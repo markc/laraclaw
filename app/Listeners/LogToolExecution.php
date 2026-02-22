@@ -37,6 +37,14 @@ class LogToolExecution
         static::$activeSession = $session;
     }
 
+    /**
+     * Get the current active session.
+     */
+    public static function getSession(): ?AgentSession
+    {
+        return static::$activeSession;
+    }
+
     public function handleInvoking(InvokingTool $event): void
     {
         static::$startTimes[$event->toolInvocationId] = microtime(true);
