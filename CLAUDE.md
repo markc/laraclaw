@@ -29,6 +29,9 @@ bun install                     # Install frontend dependencies
 php artisan migrate             # Run migrations
 php artisan migrate:fresh --seed # Reset database with default agent + user
 vendor/bin/pint                 # PHP code style fixer (Laravel Pint)
+php artisan agent:health-check  # Run health checks, dispatch matching health-type routines
+php artisan sandbox:provision   # Clone ready Proxmox containers for sandboxed execution
+php artisan sandbox:cleanup     # Release stale containers (--destroy-all to remove all)
 ```
 
 ## Architecture
@@ -44,18 +47,121 @@ vendor/bin/pint                 # PHP code style fixer (Laravel Pint)
 7. `ChatLayout` subscribes to user channel — sidebar auto-refreshes on session lifecycle events
 
 ### Core Services (`app/Services/`)
-- `Agent/AgentRuntime` — Main orchestrator: sync (`handleMessage`), SSE (`streamMessage`), WebSocket (`streamAndBroadcast`)
+- `Agent/AgentRuntime` — Main orchestrator: sync (`handleMessage`), SSE (`streamMessage`), WebSocket (`streamAndBroadcast`). Integrates `IntentRouter` for early command short-circuiting before LLM calls.
 - `Agent/SessionResolver` — Maps `IncomingMessage` to `AgentSession` (creates if needed, resolves default agent)
-- `Agent/ContextAssembler` — Builds system prompt + conversation history, includes compacted summaries
-- `Agent/SystemPromptBuilder` — Composes from workspace files with agent-level prompt overrides
+- `Agent/ContextAssembler` — Builds system prompt + conversation history, includes compacted summaries + relevant memories from hybrid search
+- `Agent/SystemPromptBuilder` — Composes from workspace files with agent-level prompt overrides + delimiter instructions for injection defense
 - `Agent/ModelRegistry` — Available models filtered by configured API keys, resolves provider from model ID
+- `Agent/IntentRouter` — Classifies messages as Command/Query/Task. Slash commands (`/model`, `/help`, `/rename`, `/info`, `/new`) are handled without LLM calls. Registered as singleton.
+- `Memory/EmbeddingService` — HTTP client to Ollama `/api/embed` (nomic-embed-text, 768-dim). Methods: `embed()`, `embedBatch()`, `toVector()`, `isAvailable()`
+- `Memory/MemorySearchService` — Hybrid search: pgvector cosine distance + tsvector full-text, fused via Reciprocal Rank Fusion (RRF)
+- `Security/ContentSanitizer` — Scans content for 8 prompt injection patterns, applies policy (block/warn/sanitize/allow), wraps in delimiters
+- `Security/InjectionAuditLog` — Dual logging to Laravel log + `injection_detections` table
+- `Tools/SanitizingToolWrapper` — Transparent decorator: wraps any Tool, sanitizes output, logs detections
+- `Routines/EventFilterEvaluator` — Evaluates event filters (exact match, glob, existence checks) for event-triggered routines
+- `Routines/HealthMonitor` — Checks stuck jobs, failed jobs, missed heartbeats, stale sessions
+- `Sandbox/ProxmoxClient` — HTTP client for Proxmox VE REST API (container lifecycle, exec)
+- `Sandbox/ContainerPool` — Atomic claim/release of pooled Proxmox containers via `lockForUpdate()`
+- `Sandbox/SandboxExecutor` — Claim → exec → release workflow for sandboxed command execution
 
 ### Models
 - `Agent` — Agent configurations (multi-agent support, `is_default` flag, `prompt_overrides` JSON)
 - `AgentSession` — Conversation sessions with channel, trust level, per-session model/provider override
 - `AgentMessage` — Individual messages (append-only log, `usage` JSON for token tracking)
-- `Memory` — Long-term memory entries + embeddings
+- `Memory` — Long-term memory entries + embeddings. Auto-dispatches `GenerateMemoryEmbedding` job on create/update (gated by config)
 - `Tool` / `ToolExecution` — Tool registry and audit log
+- `InjectionDetection` — Audit log for prompt injection detections (source, patterns, policy applied)
+- `ScheduledAction` — Routines with 4 trigger types: Cron, Event, Webhook, Health. Supports cooldowns, retry tracking, event filters
+- `SandboxContainer` — Pooled Proxmox CT containers (vmid, status: ready/busy/provisioning/destroying)
+
+### Intent Router & Slash Commands
+
+Messages are classified before reaching the LLM. Slash commands short-circuit entirely — no tokens consumed.
+
+**Built-in commands** (`app/Services/Agent/Commands/`):
+- `/model [id]` — Show current model or switch to a new one. Validates against `ModelRegistry`, updates session.
+- `/rename <title>` — Rename the current session. Fires `SessionUpdated` event.
+- `/help` (alias: `/?`) — List all registered commands with descriptions.
+- `/info` — Show session details: model, provider, message count, tool count, trust level.
+- `/new` — Start a fresh session (returns metadata for caller to handle per-channel).
+
+**TUI-only commands** (handled locally in `AgentChat` before IntentRouter):
+- `/quit`, `/exit`, `/q` — Exit the TUI chat loop.
+- `/sessions` — List recent TUI sessions.
+- `/resume <key>` — Resume a previous session.
+
+**Adding custom commands**: Create a class implementing `App\Contracts\CommandHandler`, register it in `config/intents.php` under the `commands` key.
+
+**Heuristic classification** (non-command messages): Messages are classified as `Query` or `Task` based on length, question marks, interrogative words, code blocks, and imperative verbs. No LLM call — pure heuristics. Config thresholds in `config/intents.php`.
+
+### Hybrid Memory Search (RRF)
+
+Memories are automatically embedded via Ollama and searchable via hybrid vector+keyword search.
+
+**How it works**:
+1. `Memory` model dispatches `GenerateMemoryEmbedding` job on create/update (when `config('memory.auto_index.enabled')`)
+2. Job calls Ollama `/api/embed` → stores 768-dim vector via `DB::statement()` with `::vector` cast
+3. PostgreSQL trigger auto-populates `content_tsv` tsvector column from `content`
+4. `ContextAssembler` calls `MemorySearchService::search()` with the user's message
+5. Vector search (pgvector `<=>`) and keyword search (tsvector/tsquery) run in parallel
+6. Results merged via RRF: `score = Σ(weight / (k + rank))` with k=60, vector_weight=0.7, keyword_weight=0.3
+7. Top results appended to system prompt as `## Relevant Memories` section
+
+**Graceful degradation**: If Ollama is unavailable, keyword-only results are returned. If search fails entirely, chat continues without memory context.
+
+**Config** (`config/memory.php`): `search.enabled`, `search.rrf_k`, `search.candidate_multiplier`, `embedding.timeout`, `embedding.max_content_length`, `auto_index.enabled`
+
+### Prompt Injection Defense
+
+External content (tool outputs, emails, webhooks) is scanned and sandboxed before entering LLM context.
+
+**Detection patterns** (8 regex + base64 recursive scan):
+`ignore_instructions`, `new_instructions`, `role_reassignment`, `role_impersonation`, `special_tokens`, `html_script_injection`, `act_as`, `instruction_override`
+
+**Policy matrix** (`config/security.php`): source × trust_level → action
+- `Block` — Replace content with `[Content blocked]`
+- `Warn` — Prepend warning, preserve content
+- `Sanitize` — Redact matched patterns with `[REDACTED]`
+- `Allow` — Pass through with delimiter wrapping only
+
+**Delimiter wrapping**: All external content wrapped in `<<<SOURCE_TYPE>>>...<<<END_SOURCE_TYPE>>>` markers. System prompt instructs the model to treat delimited content as untrusted data, not instructions.
+
+**Integration points**:
+- `SanitizingToolWrapper` — Automatically wraps all tools when `config('security.sanitizer.enabled')` (applied in `ToolResolver`)
+- `ProcessEmailMessage` — Sanitizes email body before passing to `AgentRuntime`
+- `SystemPromptBuilder` — Appends delimiter handling instructions
+
+**Audit**: Detections logged to both Laravel log and `injection_detections` table via `InjectionAuditLog`.
+
+### Background Routines Engine
+
+Extends `ScheduledAction` from cron-only to 4 trigger types.
+
+**Trigger types** (`App\Enums\TriggerType`):
+- `Cron` — Existing heartbeat-based scheduling (`agent:heartbeat` scoped to cron-only)
+- `Event` — Fires on Laravel events. Wildcard listener (`RoutineEventDispatcher`) matches `event_class`, evaluates `event_filter` JSON, checks cooldown.
+- `Webhook` — `POST /api/routines/webhook/{token}` endpoint. Token-authenticated, returns 202.
+- `Health` — `agent:health-check` command (runs every 5 min). Checks: stuck jobs, failed jobs, missed heartbeats, stale sessions.
+
+**Event filters** (`EventFilterEvaluator`): JSON conditions with exact match, glob wildcards (`fnmatch`), existence checks (`__exists__`), nested dot notation. All conditions are AND logic.
+
+**Retry tracking**: `max_retries`, `retry_count`, `last_error`. Auto-disables routine when retries exhausted.
+
+**Cooldowns**: `cooldown_seconds` prevents re-triggering within the cooldown window.
+
+### Proxmox CT Sandboxing
+
+Optional sandboxed code execution via Proxmox container pool. Disabled by default (`config('sandbox.driver') = 'none'`).
+
+**Architecture**: `ContainerPool` manages a fleet of pre-cloned lightweight containers. `SandboxExecutor` claims a container → runs command via Proxmox API exec → releases it. `SandboxedBashTool` is a drop-in replacement for `BashTool` routed through the executor.
+
+**Setup**:
+1. Set `SANDBOX_DRIVER=proxmox` and configure `PROXMOX_*` env vars
+2. Create a template container in Proxmox with required tools
+3. Run `php artisan sandbox:provision` to clone ready containers
+4. `ToolResolver` automatically swaps `BashTool` for `SandboxedBashTool`
+
+**Commands**: `sandbox:provision {count=2}`, `sandbox:cleanup [--destroy-all]`
 
 ### DCS Layout (Dual Carousel Sidebar)
 Ported from LaRaDav. Glassmorphism + 5 OKLCH color schemes (crimson default, stone, ocean, forest, sunset).
@@ -72,7 +178,10 @@ Ported from LaRaDav. Glassmorphism + 5 OKLCH color schemes (crimson default, sto
 - `config/agent.php` — Models, providers, pricing, workspace settings, session defaults
 - `config/channels.php` — Web/TUI/Email channel configs with trust levels
 - `config/tools.php` — Tool policies per trust level (operator/standard/restricted)
-- `config/memory.php` — Embedding and search settings
+- `config/memory.php` — Embedding, search (RRF), and auto-indexing settings
+- `config/intents.php` — Slash command → handler class map, heuristic thresholds
+- `config/security.php` — Content sanitizer toggle, detection logging, policy matrix (source × trust → action)
+- `config/sandbox.php` — Proxmox CT sandboxing driver, API credentials, container pool settings
 
 ### Workspace Files (Agent Prompts)
 - `storage/app/agent/AGENTS.md` — Core agent instructions
@@ -91,8 +200,10 @@ Ported from LaRaDav. Glassmorphism + 5 OKLCH color schemes (crimson default, sto
 ## Conventions
 
 - PascalCase directories: Pages/, Components/, Layouts/, Contexts/ (Breeze convention)
-- Services in app/Services/ organized by domain
-- DTOs in app/DTOs/
+- Services in app/Services/ organized by domain (Agent/, Memory/, Security/, Routines/, Sandbox/, Tools/)
+- DTOs in app/DTOs/ (`IncomingMessage`, `ClassifiedIntent`, `SanitizeResult`)
+- Enums in app/Enums/ (`IntentType`, `TriggerType`, `SanitizePolicy`, `ContentSource`)
+- Contracts in app/Contracts/ (`CommandHandler` for slash commands)
 - Config-driven: use `config()` not `env()` outside config files
 - Theme CSS vars defined in `laraclaw.css`, bridged to Tailwind in `app.css` via `@theme` block
 - TypeScript types for shared Inertia props in `resources/js/types/index.d.ts`
