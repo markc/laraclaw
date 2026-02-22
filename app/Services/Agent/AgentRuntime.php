@@ -148,11 +148,11 @@ class AgentRuntime
                 'command' => $intent->commandName,
             ]);
 
-            // Broadcast synthetic stream_end with the response
+            // Broadcast synthetic stream cycle (start → delta → end)
             $channelKey = str_replace(':', '.', $message->sessionKey);
             $channel = new Channel('private-chat.session.'.$channelKey);
 
-            broadcast(new \App\Events\StreamEnd($channel, $intent->response))->toOthers();
+            \App\Events\StreamEnd::synthetic($channel, $intent->response);
 
             $session->update(['last_activity_at' => now()]);
 
